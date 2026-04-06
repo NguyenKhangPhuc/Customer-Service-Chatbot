@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import SupabaseVectorStore
 from supabase.client import create_client, Client
-import os
 from dotenv import load_dotenv
 import uvicorn
 from pydantic import BaseModel

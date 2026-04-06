@@ -92,19 +92,19 @@ def receiver_email_retriever_tool(
 ) -> Command:
     """Using above information to search for suitable receiver email in vector db"""
     query_vector = embeddings.embed_query(full_problem_information)
-
+    print(f"This is query for finding receiver email {full_problem_information}")
     rpc_response = supabase.rpc(
         "match_documents", 
         {
             "query_embedding": query_vector,
-            "match_count": 2,
+            "match_count": 3,
             "filter": {}
         }
     ).execute()
 
     docs = rpc_response.data
     context = "\n".join([d['content'] for d in docs])
-
+    print(f"Thiss iss context after semantic search {context}")
     temp_llm = ChatOpenAI(model="gpt-4o-mini")
     email_extract = temp_llm.invoke(
         f"Base on the above information of the problem: {context}."
@@ -162,19 +162,43 @@ def confirm_final_email(
         )
     
 @tool
-def go_back_to_subject_title() -> Command:
+def go_back_to_subject_title(runtime: ToolRuntime[None, SupportState]) -> Command:
     """Go back to subject title step."""
-    return Command(update={"current_step": "subject_title"})
+    return Command(update={
+        "messages": [
+                        ToolMessage(
+                        content=f"Go back to subject title state",
+                        tool_call_id=runtime.tool_call_id,
+                    )
+                ],
+        "current_step": "subject_title"
+        })
 
 @tool
-def go_back_to_sender_email_step() -> Command:
+def go_back_to_sender_email_step(runtime: ToolRuntime[None, SupportState]) -> Command:
     """Go back to sender email step step."""
-    return Command(update={"current_step": "sender_email"})
+    return Command(update={
+        "messages": [
+                        ToolMessage(
+                        content=f"Go back to sender email state",
+                        tool_call_id=runtime.tool_call_id,
+                    )
+                ],
+        "current_step": "sender_email"
+        })
 
 @tool
-def go_back_to_mail_description_step() -> Command:
+def go_back_to_mail_description_step(runtime: ToolRuntime[None, SupportState]) -> Command:
     """Go back to the mail description/content step to edit the report body.""" 
-    return Command(update={"current_step": "mail_description"})
+    return Command(update={
+        "messages": [
+                        ToolMessage(
+                        content=f"Go back to mail description state",
+                        tool_call_id=runtime.tool_call_id,
+                    )
+                ],
+        "current_step": "mail_description"
+        })
 
 
 @tool
@@ -189,8 +213,8 @@ def sending_email(receiver_email: str, sender_email: str, mail_subject: str, mai
     try:
         # 1. Tạo cấu trúc Email
         msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = receiver_email
+        msg['From'] = receiver_email
+        msg['To'] = sender_email
         msg['Subject'] = mail_subject
         
         # Thêm nội dung mail
