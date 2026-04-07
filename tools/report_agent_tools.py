@@ -36,6 +36,11 @@ def subject_title_retriever_tool(
     runtime: ToolRuntime[None, SupportState],
 ) -> Command:
     """Record the subject or title of the support request."""
+    state = runtime.state
+    if state.get("mail_description") and state.get("sender_email"):
+        next_step = "final_confirmation"
+    else:
+        next_step = "sender_email" 
     return Command(
         update={
             "messages": [
@@ -45,7 +50,7 @@ def subject_title_retriever_tool(
                 )
             ],
             "subject_title": subject_title,
-            "current_step": "sender_email",
+            "current_step": next_step,
         }
     )
 
@@ -55,6 +60,11 @@ def sender_email_retriever_tool(
     runtime: ToolRuntime[None, SupportState],
 ) -> Command:
     """Record the sender email"""
+    state = runtime.state
+    if state.get("mail_description") and state.get("subject_title"):
+        next_step = "final_confirmation"
+    else:
+        next_step = "mail_description" 
     return Command(
         update={
             "messages": [
@@ -64,7 +74,7 @@ def sender_email_retriever_tool(
                 )
             ],
             "sender_email": email,
-            "current_step": "mail_description",
+            "current_step": next_step,
         }
     )
 
@@ -91,6 +101,7 @@ def receiver_email_retriever_tool(
     runtime: ToolRuntime[None, SupportState],
 ) -> Command:
     """Using above information to search for suitable receiver email in vector db"""
+    state = runtime.state
     query_vector = embeddings.embed_query(full_problem_information)
     print(f"This is query for finding receiver email {full_problem_information}")
     rpc_response = supabase.rpc(
@@ -209,27 +220,24 @@ def sending_email(receiver_email: str, sender_email: str, mail_subject: str, mai
     SMTP_SERVER = "smtp.gmail.com"
     SMTP_PORT = 587
     GMAIL_APP_PASSWORD = smtp_pass 
-
+    print(f"This is smtp pass {smtp_pass} this is sender_email {receiver_email}")
     try:
-        # 1. Tạo cấu trúc Email
         msg = MIMEMultipart()
         msg['From'] = receiver_email
         msg['To'] = sender_email
         msg['Subject'] = mail_subject
         
-        # Thêm nội dung mail
         msg.attach(MIMEText(mail_description, 'plain'))
 
-        # 2. Kết nối và gửi
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()  # Bảo mật kết nối
-        server.login(sender_email, GMAIL_APP_PASSWORD)
+        server.login(receiver_email, GMAIL_APP_PASSWORD)
         
         text = msg.as_string()
-        server.sendmail(sender_email, receiver_email, text)
+        server.sendmail(receiver_email, sender_email, text)
         server.quit()
 
-        return f"Email sent successfully to {receiver_email}!"
+        return f"Email sent successfully to {sender_email}!"
     
     except Exception as e:
         return f"Failed to send email. Error: {str(e)}"
